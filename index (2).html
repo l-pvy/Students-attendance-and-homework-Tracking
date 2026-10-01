@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rollbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #faf6ec; --paper-line: #e4dcc8; --ink: #262019; --ink-soft: #6b6152;
+    --accent: #2f6f63; --accent-soft: #e4efec; --present: #2f6f63; --late: #b3862c;
+    --absent: #ab4c3a; --excused: #7a7264; --card: #ffffff; --shadow: rgba(38, 32, 25, 0.08);
+    --danger: #ab4c3a; --focus: #2f6f63;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #17181a; --paper-line: #2c2d2f; --ink: #ece7de; --ink-soft: #a49f92;
+      --accent: #6ab5a3; --accent-soft: #1e2b28; --present: #6ab5a3; --late: #d1a54a;
+      --absent: #d3796a; --excused: #948c7c; --card: #1f2022; --shadow: rgba(0,0,0,0.35);
+      --danger: #d3796a; --focus: #6ab5a3;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #17181a; --paper-line: #2c2d2f; --ink: #ece7de; --ink-soft: #a49f92;
+    --accent: #6ab5a3; --accent-soft: #1e2b28; --present: #6ab5a3; --late: #d1a54a;
+    --absent: #d3796a; --excused: #948c7c; --card: #1f2022; --shadow: rgba(0,0,0,0.35);
+    --danger: #d3796a; --focus: #6ab5a3;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: "Inter", system-ui, sans-serif; min-height: 100%; }
+  body { display: flex; min-height: 100vh; }
+  h1, h2, h3 { font-family: "Source Serif 4", Georgia, serif; font-weight: 600; margin: 0 0 4px 0; }
+  button { font-family: inherit; cursor: pointer; }
+  input, select { font-family: inherit; }
+  ::selection { background: var(--accent-soft); }
+
+  .sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--paper-line); padding: 28px 18px; display: flex; flex-direction: column; gap: 28px; }
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+  .brand-mark { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); display: inline-block; transform: translateY(-1px); }
+  .brand h1 { font-size: 20px; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; border: none; background: transparent; color: var(--ink-soft); font-size: 14.5px; font-weight: 500; text-align: left; }
+  .nav-item:hover { background: var(--accent-soft); color: var(--ink); }
+  .nav-item.active { background: var(--accent-soft); color: var(--accent); }
+  .nav-item .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.6; }
+  .sidebar-foot { margin-top: auto; font-size: 12px; color: var(--ink-soft); line-height: 1.5; border-top: 1px solid var(--paper-line); padding-top: 14px; }
+
+  .main { flex: 1; min-width: 0; padding: 32px 40px 60px; max-width: 1020px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .page-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 14px; }
+  .page-head p { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; max-width: 46ch; }
+
+  .btn { background: var(--accent); color: var(--card); border: none; padding: 9px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:focus-visible, .nav-item:focus-visible, input:focus-visible, select:focus-visible, .status-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--paper-line); }
+  .btn.danger { background: var(--danger); }
+  .btn.small { padding: 6px 11px; font-size: 12.5px; }
+
+  input[type=text], input[type=date], select { background: var(--card); border: 1px solid var(--paper-line); color: var(--ink); padding: 9px 11px; border-radius: 6px; font-size: 14px; }
+  .field-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .card { background: var(--card); border: 1px solid var(--paper-line); border-radius: 10px; box-shadow: 0 1px 3px var(--shadow); }
+
+  .filter-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-bar label { font-size: 12.5px; color: var(--ink-soft); }
+
+  .ledger { width: 100%; border-collapse: collapse; }
+  .ledger th { text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-soft); padding: 12px 16px; border-bottom: 1px solid var(--paper-line); }
+  .ledger td { padding: 12px 16px; border-bottom: 1px solid var(--paper-line); font-size: 14.5px; vertical-align: middle; }
+  .ledger tr:last-child td { border-bottom: none; }
+  .ledger tr:hover td { background: var(--accent-soft); }
+  .student-name { font-weight: 500; }
+  .muted { color: var(--ink-soft); }
+  .class-tag { font-size: 11.5px; color: var(--ink-soft); background: var(--accent-soft); padding: 2px 8px; border-radius: 20px; display: inline-block; }
+
+  .empty { padding: 48px 20px; text-align: center; color: var(--ink-soft); }
+  .empty h3 { color: var(--ink); font-size: 17px; margin-bottom: 6px; }
+  .empty p { margin: 0 0 16px; font-size: 14px; }
+
+  .status-group { display: flex; gap: 6px; }
+  .status-btn { border: 1px solid var(--paper-line); background: var(--card); color: var(--ink-soft); font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 5px; }
+  .status-btn[data-status="present"].active { background: var(--present); color: #fff; border-color: var(--present); }
+  .status-btn[data-status="late"].active { background: var(--late); color: #fff; border-color: var(--late); }
+  .status-btn[data-status="absent"].active { background: var(--absent); color: #fff; border-color: var(--absent); }
+  .status-btn[data-status="excused"].active { background: var(--excused); color: #fff; border-color: var(--excused); }
+
+  .pill { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; color: #fff; }
+  .pill.present { background: var(--present); }
+  .pill.pending { background: var(--paper-line); color: var(--ink-soft); }
+
+  .check { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--paper-line); background: var(--card); display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; }
+  .check.on { background: var(--accent); border-color: var(--accent); }
+
+  .stat-row { display: flex; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .stat { background: var(--card); border: 1px solid var(--paper-line); border-radius: 10px; padding: 14px 18px; min-width: 130px; }
+  .stat .num { font-family: "Source Serif 4", serif; font-size: 26px; font-weight: 600; }
+  .stat .lab { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+  .assign-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
+  .assign-item { background: var(--card); border: 1px solid var(--paper-line); border-radius: 8px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .assign-item.active { border-color: var(--accent); background: var(--accent-soft); }
+  .assign-item .t { font-weight: 500; }
+  .assign-item .d { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+
+  .class-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .class-chip { background: var(--card); border: 1px solid var(--paper-line); border-radius: 20px; padding: 7px 8px 7px 14px; display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+  .class-chip.all.active, .class-chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+  .delete-x { background: transparent; border: none; color: var(--ink-soft); font-size: 15px; padding: 4px 8px; border-radius: 4px; line-height: 1; }
+  .delete-x:hover { color: var(--danger); background: var(--accent-soft); }
+  .edit-link { background: transparent; border: none; color: var(--accent); font-size: 13px; font-weight: 600; padding: 4px 8px; border-radius: 4px; }
+  .edit-link:hover { background: var(--accent-soft); }
+
+  .bar-wrap { background: var(--paper-line); border-radius: 20px; height: 7px; width: 90px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+  .modal { background: var(--card); border-radius: 12px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 8px 30px var(--shadow); }
+  .modal h3 { margin-bottom: 14px; }
+  .modal .field-row { flex-direction: column; align-items: stretch; margin-bottom: 12px; }
+  .modal label { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 5px; display: block; }
+  .modal-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+  .modal-actions .right { display: flex; gap: 8px; }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 18px; border-radius: 8px; font-size: 13.5px; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 60; }
+  .toast.show { opacity: 1; }
+  .overflow-x { overflow-x: auto; }
+
+  @media (max-width: 760px) {
+    body { flex-direction: column; }
+    .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 14px 16px; gap: 14px; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--paper-line); }
+    .sidebar-foot { display: none; }
+    .nav { flex-direction: row; }
+    .brand h1 { font-size: 17px; }
+    .main { padding: 22px 18px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand"><span class="brand-mark"></span><h1>Rollbook</h1></div>
+  <nav class="nav">
+    <button class="nav-item active" data-view="attendance"><span class="dot"></span>Attendance</button>
+    <button class="nav-item" data-view="homework"><span class="dot"></span>Homework</button>
+    <button class="nav-item" data-view="students"><span class="dot"></span>Students</button>
+    <button class="nav-item" data-view="classes"><span class="dot"></span>Classes</button>
+    <button class="nav-item" data-view="reports"><span class="dot"></span>Reports</button>
+  </nav>
+  <div class="sidebar-foot">Saved automatically in this browser.</div>
+</div>
+
+<div class="main">
+
+  <section class="view active" id="view-attendance">
+    <div class="page-head">
+      <div><h2>Attendance</h2><p>Mark each student present, late, absent or excused for the selected day.</p></div>
+      <div class="field-row">
+        <input type="date" id="attendance-date">
+        <button class="btn ghost small" id="mark-all-present">Mark all present</button>
+      </div>
+    </div>
+    <div class="filter-bar"><label>Class:</label><div id="attendance-class-chips" class="class-chip-list" style="margin-bottom:0;"></div></div>
+    <div class="card overflow-x" id="attendance-wrap"></div>
+  </section>
+
+  <section class="view" id="view-homework">
+    <div class="page-head">
+      <div><h2>Homework</h2><p>Create an assignment with a subject and class, then check off who has turned it in.</p></div>
+      <button class="btn" id="new-assignment-btn">New assignment</button>
+    </div>
+    <div class="filter-bar"><label>Class:</label><div id="homework-class-chips" class="class-chip-list" style="margin-bottom:0;"></div></div>
+    <div class="assign-list" id="assign-list"></div>
+    <div class="card overflow-x" id="homework-wrap"></div>
+  </section>
+
+  <section class="view" id="view-students">
+    <div class="page-head">
+      <div><h2>Students</h2><p>Your roster, organized by class or level. Click a name to edit it.</p></div>
+      <button class="btn" id="add-student-btn">Add student</button>
+    </div>
+    <div class="filter-bar"><label>Class:</label><div id="students-class-chips" class="class-chip-list" style="margin-bottom:0;"></div></div>
+    <div class="card overflow-x" id="students-wrap"></div>
+  </section>
+
+  <section class="view" id="view-classes">
+    <div class="page-head">
+      <div><h2>Classes</h2><p>Create the classes, grades or levels you teach, so students and homework can be grouped by them.</p></div>
+      <button class="btn" id="add-class-btn">Add class</button>
+    </div>
+    <div class="card overflow-x" id="classes-wrap"></div>
+  </section>
+
+  <section class="view" id="view-reports">
+    <div class="page-head">
+      <div><h2>Reports</h2><p>Attendance and homework rates across every recorded day and assignment.</p></div>
+    </div>
+    <div class="filter-bar"><label>Class:</label><div id="reports-class-chips" class="class-chip-list" style="margin-bottom:0;"></div></div>
+    <div class="stat-row" id="report-stats"></div>
+    <div class="card overflow-x" id="reports-wrap"></div>
+  </section>
+
+</div>
+
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Tiny localStorage data layer ----------
+  const KEYS = {
+    students: "rollbook_students",
+    attendance: "rollbook_attendance",
+    homework: "rollbook_homework",
+    hwStatus: "rollbook_hwstatus",
+    classes: "rollbook_classes",
+  };
+  function load(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; } }
+  function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; } }
+
+  const STATUS_LABELS = { present: "Present", late: "Late", absent: "Absent", excused: "Excused" };
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+
+  let classes = load(KEYS.classes);              // [{id, name}]
+  let students = load(KEYS.students);             // [{id, name, classId}]
+  let attendance = load(KEYS.attendance);         // [{id, studentId, date, status}]
+  let assignments = load(KEYS.homework);          // [{id, title, subject, classId, dueDate, createdAt}]
+  let hwStatus = load(KEYS.hwStatus);             // [{id, assignmentId, studentId, submitted}]
+  let activeAssignmentId = assignments.length ? assignments[0].id : null;
+
+  // per-tab class filters ("all" or a class id)
+  const filters = { attendance: "all", homework: "all", students: "all", reports: "all" };
+
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast._h); toast._h = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function fmtDate(d) { const dt = new Date(d + "T00:00:00"); if (isNaN(dt)) return d; return dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); }
+  function uid(prefix) { return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function classNameFor(id) { const c = classes.find(c => c.id === id); return c ? c.name : null; }
+
+  // ---------- Navigation ----------
+  document.querySelectorAll(".nav-item").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("view-" + btn.dataset.view).classList.add("active");
+      if (btn.dataset.view === "reports") renderReports();
+    });
+  });
+
+  // ---------- Class filter chip bars (shared helper) ----------
+  function renderClassChips(containerId, filterKey, onChange) {
+    const wrap = document.getElementById(containerId);
+    let html = `<button class="class-chip all ${filters[filterKey] === "all" ? "active" : ""}" data-chip="all">All classes</button>`;
+    html += classes.map(c => `<button class="class-chip ${filters[filterKey] === c.id ? "active" : ""}" data-chip="${esc(c.id)}">${esc(c.name)}</button>`).join("");
+    if (!classes.length) html += `<span class="muted" style="font-size:13px;">No classes yet — add one in the Classes tab.</span>`;
+    wrap.innerHTML = html;
+    wrap.querySelectorAll("[data-chip]").forEach(b => {
+      b.addEventListener("click", () => { filters[filterKey] = b.dataset.chip; onChange(); });
+    });
+  }
+
+  function studentsInFilter(filterKey) {
+    const f = filters[filterKey];
+    return f === "all" ? students : students.filter(s => s.classId === f);
+  }
+
+  // ---------- Classes ----------
+  document.getElementById("add-class-btn").addEventListener("click", () => openClassModal(null));
+
+  function renderClasses() {
+    const wrap = document.getElementById("classes-wrap");
+    if (!classes.length) {
+      wrap.innerHTML = '<div class="empty"><h3>No classes yet</h3><p>Add a class, grade or level — e.g. "Grade 5A" or "Beginner English" — to start organizing students.</p></div>';
+      return;
+    }
+    const rows = classes.map(c => {
+      const count = students.filter(s => s.classId === c.id).length;
+      return `
+        <tr>
+          <td class="student-name">${esc(c.name)}</td>
+          <td class="muted">${count} student${count === 1 ? "" : "s"}</td>
+          <td style="text-align:right;">
+            <button class="edit-link" data-edit-class="${esc(c.id)}">Rename</button>
+            <button class="delete-x" data-del-class="${esc(c.id)}">Remove</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+    wrap.innerHTML = `<table class="ledger"><thead><tr><th>Class</th><th>Students</th><th style="text-align:right;">&nbsp;</th></tr></thead><tbody>${rows}</tbody></table>`;
+    wrap.querySelectorAll("[data-edit-class]").forEach(b => b.addEventListener("click", () => openClassModal(b.dataset.editClass)));
+    wrap.querySelectorAll("[data-del-class]").forEach(b => b.addEventListener("click", () => deleteClass(b.dataset.delClass)));
+  }
+
+  function openClassModal(classId) {
+    const existing = classId ? classes.find(c => c.id === classId) : null;
+    const root = document.getElementById("modal-root");
+    root.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal">
+          <h3>${existing ? "Rename class" : "New class"}</h3>
+          <div class="field-row"><label for="class-name">Name</label><input type="text" id="class-name" placeholder="e.g. Grade 5A, Level 2" value="${existing ? esc(existing.name) : ""}"></div>
+          <div class="modal-actions">
+            <div></div>
+            <div class="right">
+              <button class="btn ghost small" id="class-cancel">Cancel</button>
+              <button class="btn small" id="class-save">${existing ? "Save" : "Create"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("class-name").focus();
+    document.getElementById("class-cancel").addEventListener("click", closeModal);
+    document.getElementById("modal-backdrop").addEventListener("click", e => { if (e.target.id === "modal-backdrop") closeModal(); });
+    document.getElementById("class-save").addEventListener("click", () => {
+      const name = document.getElementById("class-name").value.trim();
+      if (!name) return;
+      if (existing) { existing.name = name; toast("Class renamed."); }
+      else { classes.push({ id: uid("c"), name }); toast("Class added."); }
+      save(KEYS.classes, classes);
+      closeModal();
+      renderClasses(); renderAllClassChips(); renderStudents(); renderAttendance(); renderAssignList(); renderHomeworkBody();
+    });
+  }
+
+  function deleteClass(id) {
+    const count = students.filter(s => s.classId === id).length;
+    const msg = count
+      ? `Remove this class? ${count} student${count === 1 ? "" : "s"} in it will become unassigned.`
+      : "Remove this class?";
+    if (!confirm(msg)) return;
+    classes = classes.filter(c => c.id !== id);
+    students.forEach(s => { if (s.classId === id) s.classId = null; });
+    assignments.forEach(a => { if (a.classId === id) a.classId = null; });
+    save(KEYS.classes, classes); save(KEYS.students, students); save(KEYS.homework, assignments);
+    Object.keys(filters).forEach(k => { if (filters[k] === id) filters[k] = "all"; });
+    renderClasses(); renderAllClassChips(); renderStudents(); renderAttendance(); renderAssignList(); renderHomeworkBody();
+    toast("Class removed.");
+  }
+
+  function renderAllClassChips() {
+    renderClassChips("attendance-class-chips", "attendance", renderAttendance);
+    renderClassChips("homework-class-chips", "homework", () => { renderAssignList(); renderHomeworkBody(); });
+    renderClassChips("students-class-chips", "students", renderStudents);
+    renderClassChips("reports-class-chips", "reports", renderReports);
+  }
+
+  // ---------- Students ----------
+  document.getElementById("add-student-btn").addEventListener("click", () => openStudentModal(null));
+
+  function renderStudents() {
+    const wrap = document.getElementById("students-wrap");
+    const list = studentsInFilter("students");
+    if (!list.length) {
+      wrap.innerHTML = students.length
+        ? '<div class="empty"><h3>No students in this class</h3><p>Try "All classes", or add a student to this one.</p></div>'
+        : '<div class="empty"><h3>No students yet</h3><p>Add your first student above to start tracking attendance and homework.</p></div>';
+      return;
+    }
+    const rows = list.map(s => {
+      const cname = classNameFor(s.classId);
+      return `
+        <tr>
+          <td><button class="edit-link" style="font-weight:500;color:var(--ink);" data-edit-student="${esc(s.id)}">${esc(s.name)}</button></td>
+          <td>${cname ? `<span class="class-tag">${esc(cname)}</span>` : '<span class="muted">Unassigned</span>'}</td>
+          <td style="text-align:right;"><button class="delete-x" data-del-student="${esc(s.id)}">Remove</button></td>
+        </tr>
+      `;
+    }).join("");
+    wrap.innerHTML = `<table class="ledger"><thead><tr><th>Name</th><th>Class</th><th style="text-align:right;">&nbsp;</th></tr></thead><tbody>${rows}</tbody></table>`;
+    wrap.querySelectorAll("[data-edit-student]").forEach(b => b.addEventListener("click", () => openStudentModal(b.dataset.editStudent)));
+    wrap.querySelectorAll("[data-del-student]").forEach(b => b.addEventListener("click", () => removeStudent(b.dataset.delStudent)));
+  }
+
+  function classOptionsHtml(selectedId) {
+    let html = `<option value="" ${!selectedId ? "selected" : ""}>No class</option>`;
+    html += classes.map(c => `<option value="${esc(c.id)}" ${selectedId === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("");
+    return html;
+  }
+
+  function openStudentModal(studentId) {
+    const existing = studentId ? students.find(s => s.id === studentId) : null;
+    const defaultClass = existing ? existing.classId : (filters.students !== "all" ? filters.students : null);
+    const root = document.getElementById("modal-root");
+    root.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal">
+          <h3>${existing ? "Edit student" : "New student"}</h3>
+          <div class="field-row"><label for="student-name">Name</label><input type="text" id="student-name" placeholder="Student name" value="${existing ? esc(existing.name) : ""}"></div>
+          <div class="field-row"><label for="student-class">Class</label><select id="student-class">${classOptionsHtml(defaultClass)}</select></div>
+          <div class="modal-actions">
+            <div>${existing ? '<button class="delete-x" id="student-delete">Remove student</button>' : ""}</div>
+            <div class="right">
+              <button class="btn ghost small" id="student-cancel">Cancel</button>
+              <button class="btn small" id="student-save">${existing ? "Save" : "Add"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("student-name").focus();
+    document.getElementById("student-name").select();
+    document.getElementById("student-cancel").addEventListener("click", closeModal);
+    document.getElementById("modal-backdrop").addEventListener("click", e => { if (e.target.id === "modal-backdrop") closeModal(); });
+    if (existing) document.getElementById("student-delete").addEventListener("click", () => { closeModal(); removeStudent(existing.id); });
+    document.getElementById("student-save").addEventListener("click", () => {
+      const name = document.getElementById("student-name").value.trim();
+      const classId = document.getElementById("student-class").value || null;
+      if (!name) return;
+      if (existing) { existing.name = name; existing.classId = classId; toast("Student updated."); }
+      else { students.push({ id: uid("s"), name, classId }); toast("Student added."); }
+      students.sort((a, b) => a.name.localeCompare(b.name));
+      save(KEYS.students, students);
+      closeModal();
+      renderClasses(); renderStudents(); renderAttendance(); renderHomeworkBody();
+    });
+  }
+
+  function removeStudent(id) {
+    if (!confirm("Remove this student? Their recorded attendance and homework history will stay in reports but no longer show in checklists.")) return;
+    students = students.filter(s => s.id !== id);
+    save(KEYS.students, students);
+    renderClasses(); renderStudents(); renderAttendance(); renderHomeworkBody();
+    toast("Student removed.");
+  }
+
+  function closeModal() { document.getElementById("modal-root").innerHTML = ""; }
+
+  // ---------- Attendance ----------
+  const dateInput = document.getElementById("attendance-date");
+  dateInput.value = todayStr();
+  dateInput.addEventListener("change", renderAttendance);
+  document.getElementById("mark-all-present").addEventListener("click", markAllPresent);
+
+  function attendanceFor(date, studentId) { return attendance.find(a => a.date === date && a.studentId === studentId); }
+
+  function renderAttendance() {
+    const wrap = document.getElementById("attendance-wrap");
+    const list = studentsInFilter("attendance");
+    if (!list.length) {
+      wrap.innerHTML = students.length
+        ? '<div class="empty"><h3>No students in this class</h3><p>Try "All classes" above.</p></div>'
+        : '<div class="empty"><h3>No students yet</h3><p>Add students on the Students tab before taking attendance.</p></div>';
+      return;
+    }
+    const date = dateInput.value || todayStr();
+    const rows = list.map(s => {
+      const rec = attendanceFor(date, s.id);
+      const status = rec ? rec.status : null;
+      const btns = ["present", "late", "absent", "excused"].map(st =>
+        `<button class="status-btn ${status === st ? "active" : ""}" data-status="${st}" data-student="${esc(s.id)}">${STATUS_LABELS[st]}</button>`
+      ).join("");
+      return `<tr><td class="student-name">${esc(s.name)}</td><td><div class="status-group">${btns}</div></td></tr>`;
+    }).join("");
+    wrap.innerHTML = `<table class="ledger"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+    wrap.querySelectorAll(".status-btn").forEach(b => b.addEventListener("click", () => setAttendance(b.dataset.student, b.dataset.status)));
+  }
+
+  function setAttendance(studentId, status) {
+    const date = dateInput.value || todayStr();
+    const existing = attendanceFor(date, studentId);
+    if (existing && existing.status === status) attendance = attendance.filter(a => a !== existing);
+    else if (existing) existing.status = status;
+    else attendance.push({ id: uid("att"), studentId, date, status });
+    save(KEYS.attendance, attendance);
+    renderAttendance();
+  }
+
+  function markAllPresent() {
+    const list = studentsInFilter("attendance");
+    if (!list.length) return;
+    const date = dateInput.value || todayStr();
+    list.forEach(s => {
+      const existing = attendanceFor(date, s.id);
+      if (existing) existing.status = "present";
+      else attendance.push({ id: uid("att"), studentId: s.id, date, status: "present" });
+    });
+    save(KEYS.attendance, attendance);
+    renderAttendance();
+    toast("Marked everyone present.");
+  }
+
+  // ---------- Homework ----------
+  document.getElementById("new-assignment-btn").addEventListener("click", () => openAssignmentModal(null));
+
+  function assignmentsInFilter() {
+    const f = filters.homework;
+    return f === "all" ? assignments : assignments.filter(a => a.classId === f);
+  }
+
+  function openAssignmentModal(assignmentId) {
+    const existing = assignmentId ? assignments.find(a => a.id === assignmentId) : null;
+    const defaultClass = existing ? existing.classId : (filters.homework !== "all" ? filters.homework : null);
+    const root = document.getElementById("modal-root");
+    root.innerHTML = `
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal">
+          <h3>${existing ? "Edit assignment" : "New assignment"}</h3>
+          <div class="field-row"><label for="hw-title">Title</label><input type="text" id="hw-title" placeholder="e.g. Chapter 4 worksheet" value="${existing ? esc(existing.title) : ""}"></div>
+          <div class="field-row"><label for="hw-subject">Subject</label><input type="text" id="hw-subject" placeholder="e.g. Math, English, Science" value="${existing ? esc(existing.subject || "") : ""}"></div>
+          <div class="field-row"><label for="hw-class">Class</label><select id="hw-class">${classOptionsHtml(defaultClass)}</select></div>
+          <div class="field-row"><label for="hw-due">Due date (optional)</label><input type="date" id="hw-due" value="${existing && existing.dueDate ? existing.dueDate : ""}"></div>
+          <div class="modal-actions">
+            <div>${existing ? '<button class="delete-x" id="hw-delete">Delete</button>' : ""}</div>
+            <div class="right">
+              <button class="btn ghost small" id="hw-cancel">Cancel</button>
+              <button class="btn small" id="hw-save">${existing ? "Save" : "Create"}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("hw-title").focus();
+    document.getElementById("hw-cancel").addEventListener("click", closeModal);
+    document.getElementById("modal-backdrop").addEventListener("click", e => { if (e.target.id === "modal-backdrop") closeModal(); });
+    if (existing) document.getElementById("hw-delete").addEventListener("click", () => { closeModal(); deleteAssignment(existing.id); });
+    document.getElementById("hw-save").addEventListener("click", () => {
+      const title = document.getElementById("hw-title").value.trim();
+      const subject = document.getElementById("hw-subject").value.trim();
+      const classId = document.getElementById("hw-class").value || null;
+      const due = document.getElementById("hw-due").value;
+      if (!title) return;
+      if (existing) {
+        existing.title = title; existing.subject = subject; existing.classId = classId; existing.dueDate = due || null;
+        toast("Assignment updated.");
+      } else {
+        const a = { id: uid("a"), title, subject, classId, dueDate: due || null, createdAt: Date.now() };
+        assignments.unshift(a);
+        activeAssignmentId = a.id;
+        toast("Assignment created.");
+      }
+      save(KEYS.homework, assignments);
+      closeModal();
+      renderAssignList(); renderHomeworkBody();
+    });
+  }
+
+  function renderAssignList() {
+    const wrap = document.getElementById("assign-list");
+    const list = assignmentsInFilter();
+    if (activeAssignmentId && !list.some(a => a.id === activeAssignmentId)) activeAssignmentId = list.length ? list[0].id : null;
+    if (!list.length) { wrap.innerHTML = ""; return; }
+    wrap.innerHTML = list.map(a => {
+      const cname = classNameFor(a.classId);
+      const meta = [a.subject, cname, a.dueDate ? "Due " + fmtDate(a.dueDate) : null].filter(Boolean).join(" · ");
+      return `
+        <div class="assign-item ${a.id === activeAssignmentId ? "active" : ""}" data-assign="${esc(a.id)}">
+          <div><div class="t">${esc(a.title)}</div><div class="d">${meta || "No details"}</div></div>
+          <div>
+            <button class="edit-link" data-edit-assign="${esc(a.id)}">Edit</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+    wrap.querySelectorAll("[data-assign]").forEach(el => {
+      el.addEventListener("click", e => {
+        if (e.target.closest("[data-edit-assign]")) return;
+        activeAssignmentId = el.dataset.assign;
+        renderAssignList(); renderHomeworkBody();
+      });
+    });
+    wrap.querySelectorAll("[data-edit-assign]").forEach(b => {
+      b.addEventListener("click", e => { e.stopPropagation(); openAssignmentModal(b.dataset.editAssign); });
+    });
+  }
+
+  function deleteAssignment(id) {
+    assignments = assignments.filter(a => a.id !== id);
+    hwStatus = hwStatus.filter(h => h.assignmentId !== id);
+    save(KEYS.homework, assignments); save(KEYS.hwStatus, hwStatus);
+    if (activeAssignmentId === id) activeAssignmentId = null;
+    renderAssignList(); renderHomeworkBody();
+    toast("Assignment deleted.");
+  }
+
+  function hwFor(assignmentId, studentId) { return hwStatus.find(h => h.assignmentId === assignmentId && h.studentId === studentId); }
+
+  function renderHomeworkBody() {
+    const wrap = document.getElementById("homework-wrap");
+    const list = assignmentsInFilter();
+    if (!list.length) { wrap.innerHTML = '<div class="empty"><h3>No assignments yet</h3><p>Create an assignment above, then check off who turns it in.</p></div>'; return; }
+    if (!activeAssignmentId) { wrap.innerHTML = '<div class="empty"><h3>Select an assignment</h3><p>Choose one from the list above to see its submission checklist.</p></div>'; return; }
+    const assignment = assignments.find(a => a.id === activeAssignmentId);
+    const roster = assignment && assignment.classId ? students.filter(s => s.classId === assignment.classId) : students;
+    if (!roster.length) { wrap.innerHTML = '<div class="empty"><h3>No students for this assignment</h3><p>Add students to this class on the Students tab.</p></div>'; return; }
+    const rows = roster.map(s => {
+      const rec = hwFor(activeAssignmentId, s.id);
+      const on = !!(rec && rec.submitted);
+      return `
+        <tr>
+          <td class="student-name">${esc(s.name)}</td>
+          <td><span class="pill ${on ? "present" : "pending"}">${on ? "Turned in" : "Not yet"}</span></td>
+          <td style="text-align:right;"><span class="check ${on ? "on" : ""}" data-toggle-hw="${esc(s.id)}" role="button" tabindex="0">${on ? "✓" : ""}</span></td>
+        </tr>
+      `;
+    }).join("");
+    wrap.innerHTML = `<table class="ledger"><thead><tr><th>Name</th><th>Status</th><th style="text-align:right;">Toggle</th></tr></thead><tbody>${rows}</tbody></table>`;
+    wrap.querySelectorAll("[data-toggle-hw]").forEach(el => {
+      const fn = () => toggleHomework(el.dataset.toggleHw);
+      el.addEventListener("click", fn);
+      el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } });
+    });
+  }
+
+  function toggleHomework(studentId) {
+    if (!activeAssignmentId) return;
+    const rec = hwFor(activeAssignmentId, studentId);
+    if (rec) rec.submitted = !rec.submitted;
+    else hwStatus.push({ id: uid("hs"), assignmentId: activeAssignmentId, studentId, submitted: true });
+    save(KEYS.hwStatus, hwStatus);
+    renderHomeworkBody();
+  }
+
+  // ---------- Reports ----------
+  function renderReports() {
+    const statsWrap = document.getElementById("report-stats");
+    const wrap = document.getElementById("reports-wrap");
+    const list = studentsInFilter("reports");
+    if (!list.length) {
+      statsWrap.innerHTML = "";
+      wrap.innerHTML = students.length
+        ? '<div class="empty"><h3>No students in this class</h3><p>Try "All classes" above.</p></div>'
+        : '<div class="empty"><h3>Nothing to report yet</h3><p>Add students and start recording attendance or homework first.</p></div>';
+      return;
+    }
+    const ids = new Set(list.map(s => s.id));
+    const attInScope = attendance.filter(a => ids.has(a.studentId));
+    const hwInScope = hwStatus.filter(h => ids.has(h.studentId));
+
+    const daysSeen = new Set(attInScope.map(a => a.date));
+    const presentLike = attInScope.filter(a => a.status === "present" || a.status === "late").length;
+    const overallAttRate = attInScope.length ? Math.round((presentLike / attInScope.length) * 100) : null;
+    const hwDone = hwInScope.filter(h => h.submitted).length;
+    const overallHwRate = hwInScope.length ? Math.round((hwDone / hwInScope.length) * 100) : null;
+    const assignCount = filters.reports === "all" ? assignments.length : assignments.filter(a => a.classId === filters.reports).length;
+
+    statsWrap.innerHTML = `
+      <div class="stat"><div class="num">${daysSeen.size}</div><div class="lab">Days recorded</div></div>
+      <div class="stat"><div class="num">${assignCount}</div><div class="lab">Assignments</div></div>
+      <div class="stat"><div class="num">${overallAttRate === null ? "—" : overallAttRate + "%"}</div><div class="lab">Overall attendance</div></div>
+      <div class="stat"><div class="num">${overallHwRate === null ? "—" : overallHwRate + "%"}</div><div class="lab">Overall homework turned in</div></div>
+    `;
+
+    const rows = list.map(s => {
+      const a = attendance.filter(x => x.studentId === s.id);
+      const h = hwStatus.filter(x => x.studentId === s.id);
+      const present = a.filter(x => x.status === "present").length;
+      const late = a.filter(x => x.status === "late").length;
+      const absent = a.filter(x => x.status === "absent").length;
+      const excused = a.filter(x => x.status === "excused").length;
+      const attRate = a.length ? Math.round(((present + late) / a.length) * 100) : null;
+      const hwRate = h.length ? Math.round((h.filter(x => x.submitted).length / h.length) * 100) : null;
+      return `
+        <tr>
+          <td class="student-name">${esc(s.name)}</td>
+          <td>${attRate === null ? '<span class="muted">No records</span>' : `<div class="field-row" style="gap:8px;"><div class="bar-wrap"><div class="bar-fill" style="width:${attRate}%"></div></div><span class="muted">${attRate}%</span></div>`}</td>
+          <td class="muted">${a.length ? `${present} present · ${late} late · ${absent} absent · ${excused} excused` : "—"}</td>
+          <td>${hwRate === null ? '<span class="muted">No records</span>' : `<div class="field-row" style="gap:8px;"><div class="bar-wrap"><div class="bar-fill" style="width:${hwRate}%"></div></div><span class="muted">${hwRate}%</span></div>`}</td>
+        </tr>
+      `;
+    }).join("");
+
+    wrap.innerHTML = `<table class="ledger"><thead><tr><th>Name</th><th>Attendance rate</th><th>Breakdown</th><th>Homework turned in</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  // ---------- Boot ----------
+  renderClasses();
+  renderAllClassChips();
+  renderStudents();
+  renderAttendance();
+  renderAssignList();
+  renderHomeworkBody();
+})();
+</script>
+</body>
+</html>
